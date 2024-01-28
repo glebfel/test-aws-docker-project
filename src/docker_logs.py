@@ -27,21 +27,21 @@ def process_logs(aws_access_key_id: str,
     container = docker.run_container(image_name=docker_image, bash_command=bash_command)
 
     try:
-        sequence_token, logs_accumulator, new_line_counter = '1', '', 0
+        sequence_token, logs_accumulator = '1', ''
 
         for log in container.logs(stream=True):
             log = log.decode('utf-8')
-            new_line_counter = new_line_counter + 1 if not log.strip() else 0
 
-            if new_line_counter == 2:
+            if log == '\n' and len(logs_accumulator) > 0:
+                log_message = logs_accumulator.strip()
                 sequence_token = cloudwatch.send_logs(
-                    logs=[logs_accumulator],
+                    logs=[log_message],
                     log_group_name=aws_cloudwatch_group,
                     log_stream_name=aws_cloudwatch_stream,
                     sequence_token=sequence_token
                 )
-                logger.info(logs_accumulator)
-                logs_accumulator, new_line_counter = '', 0
+                logger.info(log_message)
+                logs_accumulator = ''
                 continue
 
             logs_accumulator += log

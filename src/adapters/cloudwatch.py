@@ -2,6 +2,7 @@ import logging
 import time
 
 import boto3
+from botocore.client import BaseClient
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,7 +16,7 @@ class AWSCloudwatchAdapter:
         self._client = None
 
     @property
-    def client(self):
+    def client(self) -> BaseClient:
         if not self._client:
             self._client = self._session.client('logs')
         return self._client

@@ -1,8 +1,7 @@
 import argparse
 import logging
 
-from src.adapters.cloudwatch import AWSCloudwatchAdapter
-from src.adapters.docker import DockerAdapter
+from src.docker_logs import process_logs
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,39 +19,14 @@ def main():
 
     args = parser.parse_args()
 
-    # initiate cloudwatch instance
-    cloudwatch = AWSCloudwatchAdapter(args.aws_access_key_id, args.aws_secret_access_key, args.aws_region)
-    cloudwatch.create_log_group(log_group_name=args.aws_cloudwatch_group)
-    cloudwatch.create_log_stream(log_group_name=args.aws_cloudwatch_group,
-                                 log_stream_name=args.aws_cloudwatch_stream)
-
-    # run docker container
-    docker = DockerAdapter()
-    container = docker.run_container(image_name=args.docker_image, bash_command=args.bash_command)
-
-    try:
-        sequence_token, logs_accumulator, new_line_counter = '1', '', 0
-
-        for log in container.logs(stream=True):
-            log = log.decode('utf-8')
-            new_line_counter = new_line_counter + 1 if not log.strip() else 0
-
-            if new_line_counter == 2:
-                sequence_token = cloudwatch.send_logs(
-                    logs=[logs_accumulator],
-                    log_group_name=args.aws_cloudwatch_group,
-                    log_stream_name=args.aws_cloudwatch_stream,
-                    sequence_token=sequence_token
-                )
-                logger.info(logs_accumulator)
-                logs_accumulator, new_line_counter = '', 0
-                continue
-
-            logs_accumulator += log
-    except KeyboardInterrupt:
-        container.stop()
-        cloudwatch.close()
-        docker.close()
+    process_logs(aws_access_key_id=args.aws_access_key_id,
+                 aws_secret_access_key=args.aws_secret_access_key,
+                 aws_region=args.aws_region,
+                 aws_cloudwatch_group=args.aws_cloudwatch_group,
+                 aws_cloudwatch_stream=args.aws_cloudwatch_stream,
+                 docker_image=args.docker_image,
+                 bash_command=args.bash_command,
+                 )
 
 
 if __name__ == '__main__':

@@ -37,7 +37,7 @@ class AWSCloudwatchAdapter:
     def send_logs(self, logs: list[str],
                   log_group_name: str,
                   log_stream_name: str,
-                  sequence_token: str | None = '1') -> str:
+                  sequence_token: str = '1') -> str:
         """
         Send logs to AWS CloudWatch
         :return: The sequence token for the next PutLogEvents call (in boto3 version 1.34+ is ignored)

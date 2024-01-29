@@ -1,9 +1,11 @@
 import logging
 
+from botocore.exceptions import ClientError
 from docker.errors import DockerException
 
 from src.adapters.cloudwatch import AWSCloudwatchAdapter
 from src.adapters.docker import DockerAdapter
+from src.utils import handle_exception, clean_up_resources
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -15,19 +17,19 @@ def process_logs(aws_access_key_id: str,
                  aws_cloudwatch_group: str,
                  aws_cloudwatch_stream: str,
                  docker_image: str,
-                 bash_command: str,):
-    # initiate cloudwatch instance
-    cloudwatch = AWSCloudwatchAdapter(access_key=aws_access_key_id,
-                                      secret_key=aws_secret_access_key,
-                                      region_name=aws_region)
-    cloudwatch.create_log_group(log_group_name=aws_cloudwatch_group)
-    cloudwatch.create_log_stream(log_group_name=aws_cloudwatch_group,
-                                 log_stream_name=aws_cloudwatch_stream)
-
-    # run docker container
-    docker = DockerAdapter()
-    container = None
+                 bash_command: str, ):
+    cloudwatch, docker, container = None, None, None
     try:
+        # initiate cloudwatch instance
+        cloudwatch = AWSCloudwatchAdapter(access_key=aws_access_key_id,
+                                          secret_key=aws_secret_access_key,
+                                          region_name=aws_region)
+        cloudwatch.create_log_group(log_group_name=aws_cloudwatch_group)
+        cloudwatch.create_log_stream(log_group_name=aws_cloudwatch_group,
+                                     log_stream_name=aws_cloudwatch_stream)
+
+        # run docker container
+        docker = DockerAdapter()
         container = docker.run_container(image_name=docker_image, bash_command=bash_command)
 
         sequence_token, logs_accumulator = '1', ''
@@ -48,17 +50,9 @@ def process_logs(aws_access_key_id: str,
                 continue
 
             logs_accumulator += log
-    except DockerException as ex:
-        if 'Error while fetching server API version' in str(ex):
-            logger.error("Docker daemon has not been started yet ...")
-        if 'repository does not exist' in str(ex):
-            logger.error(f"Docker image {docker_image} does not exist ...")
-        else:
-            raise
+    except (ClientError, DockerException) as ex:
+        handle_exception(ex)
     except KeyboardInterrupt:
         logger.error("Stopping the script ...")
     finally:
-        logger.error("Cleaning up all resources ...")
-        container.stop() if container else None
-        cloudwatch.close()
-        docker.close()
+        clean_up_resources(docker=docker, cloudwatch=cloudwatch, container=container)

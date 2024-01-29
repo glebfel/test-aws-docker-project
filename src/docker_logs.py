@@ -1,5 +1,7 @@
 import logging
 
+from docker.errors import DockerException
+
 from src.adapters.cloudwatch import AWSCloudwatchAdapter
 from src.adapters.docker import DockerAdapter
 
@@ -24,9 +26,10 @@ def process_logs(aws_access_key_id: str,
 
     # run docker container
     docker = DockerAdapter()
-    container = docker.run_container(image_name=docker_image, bash_command=bash_command)
-
+    container = None
     try:
+        container = docker.run_container(image_name=docker_image, bash_command=bash_command)
+
         sequence_token, logs_accumulator = '1', ''
 
         for log in container.logs(stream=True):
@@ -45,7 +48,17 @@ def process_logs(aws_access_key_id: str,
                 continue
 
             logs_accumulator += log
+    except DockerException as ex:
+        if 'Error while fetching server API version' in str(ex):
+            logger.error("Docker daemon has not been started yet ...")
+        if 'repository does not exist' in str(ex):
+            logger.error(f"Docker image {docker_image} does not exist ...")
+        else:
+            raise
     except KeyboardInterrupt:
-        container.stop()
+        logger.error("Stopping the script ...")
+    finally:
+        logger.error("Cleaning up all resources ...")
+        container.stop() if container else None
         cloudwatch.close()
         docker.close()

@@ -19,14 +19,15 @@ def main():
 
     args = parser.parse_args()
 
-    process_logs(aws_access_key_id=args.aws_access_key_id,
-                 aws_secret_access_key=args.aws_secret_access_key,
-                 aws_region=args.aws_region,
-                 aws_cloudwatch_group=args.aws_cloudwatch_group,
-                 aws_cloudwatch_stream=args.aws_cloudwatch_stream,
-                 docker_image=args.docker_image,
-                 bash_command=args.bash_command,
-                 )
+    process_logs(
+        aws_access_key_id=args.aws_access_key_id,
+        aws_secret_access_key=args.aws_secret_access_key,
+        aws_region=args.aws_region,
+        aws_cloudwatch_group=args.aws_cloudwatch_group,
+        aws_cloudwatch_stream=args.aws_cloudwatch_stream,
+        docker_image=args.docker_image,
+        bash_command=args.bash_command,
+    )
 
 
 if __name__ == '__main__':

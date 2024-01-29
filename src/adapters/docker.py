@@ -1,5 +1,6 @@
 import docker
 from docker import DockerClient
+from docker.models.containers import Container
 
 
 class DockerAdapter:
@@ -12,7 +13,7 @@ class DockerAdapter:
             self._client = docker.from_env()
         return self._client
 
-    def run_container(self, image_name: str, bash_command: str | None = None):
+    def run_container(self, image_name: str, bash_command: str | None = None) -> Container:
         return self.client.containers.run(image_name, command=bash_command, detach=True, tty=True)
 
     def close(self):
